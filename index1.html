@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline';">
+    <title>TaskMaster Enterprise - Secure Edition</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text-main: #1e293b;
+            --text-sec: #64748b;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --border: #e2e8f0;
+            --radius: 8px;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        * { box-sizing: border-box; outline-color: var(--primary); }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text-main); margin: 0; padding: 20px; line-height: 1.5; }
+
+        .app-container { max-width: 900px; margin: 0 auto; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+        
+        /* Header & Progress */
+        header { padding: 30px; background: white; border-bottom: 1px solid var(--border); }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        h1 { margin: 0; font-size: 1.5rem; color: var(--text-main); }
+        
+        .progress-container { background: #e2e8f0; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 10px; }
+        .progress-bar { height: 100%; background: var(--success); width: 0%; transition: width 0.5s ease; }
+        .stats { font-size: 0.85rem; color: var(--text-sec); margin-top: 5px; text-align: right; }
+
+        /* Form */
+        .task-form { padding: 25px; background: #f1f5f9; display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 15px; border-bottom: 1px solid var(--border); }
+        @media (max-width: 768px) { .task-form { grid-template-columns: 1fr; } }
+
+        input, select, button { padding: 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem; width: 100%; transition: border 0.2s; }
+        input:focus, select:focus { border-color: var(--primary); }
+        
+        button.primary-btn { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; }
+        button.primary-btn:hover { background: var(--primary-hover); }
+        button.cancel-btn { background: transparent; color: var(--text-sec); border: 1px solid var(--border); cursor: pointer; display: none; }
+        
+        /* Filters */
+        .filters { padding: 15px 25px; display: flex; gap: 10px; overflow-x: auto; border-bottom: 1px solid var(--border); }
+        .filter-chip { background: transparent; border: 1px solid var(--border); padding: 6px 16px; border-radius: 20px; cursor: pointer; font-size: 0.9rem; white-space: nowrap; }
+        .filter-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        /* List */
+        .task-list { list-style: none; padding: 0; margin: 0; }
+        .task-item { display: flex; align-items: flex-start; padding: 20px 25px; border-bottom: 1px solid var(--border); transition: background 0.2s; animation: slideIn 0.3s ease; }
+        .task-item:last-child { border-bottom: none; }
+        .task-item:hover { background: #f8fafc; }
+        
+        .priority-indicator { width: 4px; height: 40px; border-radius: 4px; margin-right: 15px; flex-shrink: 0; }
+        .p-high { background: var(--danger); }
+        .p-medium { background: var(--warning); }
+        .p-low { background: var(--primary); }
+
+        .task-content { flex-grow: 1; margin-right: 15px; }
+        .task-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+        .task-title { font-weight: 600; font-size: 1.05rem; color: var(--text-main); word-break: break-word; }
+        .task-desc { color: var(--text-sec); font-size: 0.9rem; margin: 4px 0 0 0; word-break: break-word; }
+        .task-meta { font-size: 0.8rem; color: #94a3b8; margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+        
+        .badge { padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 0.7rem; text-transform: uppercase; }
+        .badge-overdue { background: #fee2e2; color: var(--danger); }
+        
+        .task-item.completed .task-title { text-decoration: line-through; color: #94a3b8; }
+        .task-item.completed { opacity: 0.7; }
+
+        /* Actions */
+        .actions { display: flex; gap: 8px; }
+        .icon-btn { background: white; border: 1px solid var(--border); color: var(--text-sec); width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: pointer; padding: 0; }
+        .icon-btn:hover { background: #f1f5f9; color: var(--text-main); }
+        .btn-delete:hover { border-color: var(--danger); color: var(--danger); background: #fef2f2; }
+        .btn-complete.active { background: var(--success); color: white; border-color: var(--success); }
+
+        /* Toasts */
+        #toast-container { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 1000; }
+        .toast { padding: 12px 20px; background: #333; color: white; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 0.9rem; animation: slideUp 0.3s; display: flex; align-items: center; gap: 10px; }
+        .toast.success { border-left: 4px solid var(--success); }
+        .toast.error { border-left: 4px solid var(--danger); }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<div class="app-container">
+    <header>
+        <div class="header-top">
+            <h1>TaskMaster <span style="font-size:0.5em; vertical-align: super; color: var(--primary);">SECURE</span></h1>
+            <div id="date-display" style="color: var(--text-sec); font-weight: 500;"></div>
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div class="stats" id="stats-text">0/0 Concluídas</div>
+    </header>
+
+    <div class="task-form" id="main-form">
+        <input type="text" id="input-title" placeholder="O que precisa ser feito?" required maxlength="100">
+        <select id="input-priority">
+            <option value="low">Baixa</option>
+            <option value="medium">Média</option>
+            <option value="high">Alta</option>
+        </select>
+        <input type="date" id="input-date">
+        <div style="display:flex; gap:5px;">
+            <button class="primary-btn" id="btn-save">Adicionar</button>
+            <button class="cancel-btn" id="btn-cancel" onclick="app.cancelEdit()">Cancelar</button>
+        </div>
+        <input type="text" id="input-desc" placeholder="Detalhes (opcional)" style="grid-column: 1 / -1;" maxlength="300">
+    </div>
+
+    <div class="filters" id="filter-container">
+        <button class="filter-chip active" data-filter="all">Todas</button>
+        <button class="filter-chip" data-filter="pending">Pendentes</button>
+        <button class="filter-chip" data-filter="completed">Concluídas</button>
+        <button class="filter-chip" data-filter="high">Alta Prioridade</button>
+    </div>
+
+    <ul class="task-list" id="task-list">
+        </ul>
+</div>
+
+<script>
+/**
+ * CLASSE TASK MANAGER
+ * Padrão de Projeto: Singleton / State Management
+ * Foco: Segurança, Imutabilidade onde possível e código limpo.
+ */
+class TaskManager {
+    constructor() {
+        this.tasks = [];
+        this.filter = 'all';
+        this.editingId = null;
+        
+        // Elementos do DOM (Cache)
+        this.dom = {
+            list: document.getElementById('task-list'),
+            form: {
+                title: document.getElementById('input-title'),
+                desc: document.getElementById('input-desc'),
+                priority: document.getElementById('input-priority'),
+                date: document.getElementById('input-date'),
+                saveBtn: document.getElementById('btn-save'),
+                cancelBtn: document.getElementById('btn-cancel')
+            },
+            filters: document.querySelectorAll('.filter-chip'),
+            progressBar: document.getElementById('progress-bar'),
+            statsText: document.getElementById('stats-text'),
+            dateDisplay: document.getElementById('date-display')
+        };
+
+        this.init();
+    }
+
+    init() {
+        this.loadTasks();
+        this.setupEventListeners();
+        this.render();
+        this.updateDateDisplay();
+    }
+
+    // --- SEGURANÇA E DADOS ---
+
+    /**
+     * Sanitiza strings para evitar espaços em branco desnecessários.
+     * Nota: A proteção XSS real acontece no método render() ao usar textContent.
+     */
+    sanitizeInput(str) {
+        if (typeof str !== 'string') return '';
+        return str.trim();
+    }
+
+    saveToStorage() {
+        try {
+            localStorage.setItem('secure_tasks_v1', JSON.stringify(this.tasks));
+        } catch (e) {
+            this.showToast('Erro ao salvar localmente. Espaço cheio?', 'error');
+        }
+    }
+
+    loadTasks() {
+        try {
+            const data = localStorage.getItem('secure_tasks_v1');
+            this.tasks = data ? JSON.parse(data) : [];
+        } catch (e) {
+            this.tasks = [];
+            this.showToast('Erro ao carregar dados.', 'error');
+        }
+    }
+
+    // --- LÓGICA DE NEGÓCIO ---
+
+    addOrUpdateTask() {
+        const title = this.sanitizeInput(this.dom.form.title.value);
+        const desc = this.sanitizeInput(this.dom.form.desc.value);
+        const priority = this.dom.form.priority.value;
+        const date = this.dom.form.date.value;
+
+        if (!title) {
+            this.showToast('O título é obrigatório.', 'error');
+            this.dom.form.title.focus();
+            return;
+        }
+
+        if (!date) {
+            this.showToast('Defina uma data de entrega.', 'error');
+            return;
+        }
+
+        if (this.editingId) {
+            // Atualizar
+            const index = this.tasks.findIndex(t => t.id === this.editingId);
+            if (index !== -1) {
+                this.tasks[index] = { ...this.tasks[index], title, desc, priority, date };
+                this.showToast('Tarefa atualizada com sucesso!', 'success');
+            }
+        } else {
+            // Criar Nova
+            const newTask = {
+                id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(), // ID Criptograficamente forte se disponível
+                title,
+                desc,
+                priority,
+                date,
+                completed: false,
+                createdAt: new Date().toISOString()
+            };
+            this.tasks.push(newTask);
+            this.showToast('Tarefa criada!', 'success');
+        }
+
+        this.saveToStorage();
+        this.resetForm();
+        this.render();
+    }
+
+    deleteTask(id) {
+        // Confirmação não intrusiva seria ideal, mas para clareza manteremos confirm()
+        if (confirm('Deseja realmente excluir esta tarefa?')) {
+            this.tasks = this.tasks.filter(t => t.id !== id);
+            this.saveToStorage();
+            this.render();
+            this.showToast('Tarefa removida.', 'success');
+        }
+    }
+
+    toggleComplete(id) {
+        const task = this.tasks.find(t => t.id === id);
+        if (task) {
+            task.completed = !task.completed;
+            this.saveToStorage();
+            this.render();
+        }
+    }
+
+    startEdit(id) {
+        const task = this.tasks.find(t => t.id === id);
+        if (!task) return;
+
+        this.dom.form.title.value = task.title;
+        this.dom.form.desc.value = task.desc;
+        this.dom.form.priority.value = task.priority;
+        this.dom.form.date.value = task.date;
+        
+        this.editingId = id;
+        this.dom.form.saveBtn.textContent = 'Salvar Alterações';
+        this.dom.form.saveBtn.style.background = 'var(--warning)';
+        this.dom.form.cancelBtn.style.display = 'block';
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    cancelEdit() {
+        this.resetForm();
+    }
+
+    resetForm() {
+        this.dom.form.title.value = '';
+        this.dom.form.desc.value = '';
+        this.dom.form.priority.value = 'low';
+        this.dom.form.date.value = '';
+        
+        this.editingId = null;
+        this.dom.form.saveBtn.textContent = 'Adicionar';
+        this.dom.form.saveBtn.style.background = '';
+        this.dom.form.cancelBtn.style.display = 'none';
+    }
+
+    // --- RENDERIZAÇÃO SEGURA (DOM METHODS) ---
+
+    getFilteredTasks() {
+        const today = new Date().toISOString().split('T')[0];
+        
+        let filtered = this.tasks.filter(t => {
+            if (this.filter === 'pending') return !t.completed;
+            if (this.filter === 'completed') return t.completed;
+            if (this.filter === 'high') return t.priority === 'high';
+            return true;
+        });
+
+        // Ordenação
+        return filtered.sort((a, b) => {
+            // Concluídas no fim
+            if (a.completed !== b.completed) return a.completed ? 1 : -1;
+            // Prioridade
+            const pWeight = { high: 3, medium: 2, low: 1 };
+            if (pWeight[a.priority] !== pWeight[b.priority]) return pWeight[b.priority] - pWeight[a.priority];
+            // Data
+            return new Date(a.date) - new Date(b.date);
+        });
+    }
+
+    render() {
+        this.dom.list.innerHTML = ''; // Limpa a lista
+        const tasksToRender = this.getFilteredTasks();
+
+        if (tasksToRender.length === 0) {
+            this.dom.list.innerHTML = `<li style="text-align:center; padding:40px; color:var(--text-sec)">Nenhuma tarefa encontrada para este filtro.</li>`;
+        } else {
+            // DocumentFragment melhora performance (reflow único)
+            const fragment = document.createDocumentFragment();
+
+            tasksToRender.forEach(task => {
+                const li = this.createTaskElement(task);
+                fragment.appendChild(li);
+            });
+
+            this.dom.list.appendChild(fragment);
+        }
+
+        this.updateStats();
+    }
+
+    /**
+     * CRÍTICO PARA SEGURANÇA:
+     * Nunca usamos innerHTML com strings do usuário.
+     * Criamos elementos e usamos textContent.
+     */
+    createTaskElement(task) {
+        const li = document.createElement('li');
+        li.className = `task-item ${task.completed ? 'completed' : ''}`;
+        
+        // Indicador de Prioridade
+        const priorityIndicator = document.createElement('div');
+        priorityIndicator.className = `priority-indicator p-${task.priority}`;
+        
+        // Conteúdo
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'task-content';
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'task-header';
+
+        const title = document.createElement('span');
+        title.className = 'task-title';
+        title.textContent = task.title; // XSS PREVENIDO AQUI
+
+        headerDiv.appendChild(title);
+
+        // Badge de Atraso
+        const today = new Date().toISOString().split('T')[0];
+        if (!task.completed && task.date < today) {
+            const badge = document.createElement('span');
+            badge.className = 'badge badge-overdue';
+            badge.textContent = 'Atrasada';
+            headerDiv.appendChild(badge);
+        }
+
+        const desc = document.createElement('p');
+        desc.className = 'task-desc';
+        desc.textContent = task.desc; // XSS PREVENIDO AQUI
+
+        const meta = document.createElement('div');
+        meta.className = 'task-meta';
+        
+        // Formatar data localmente
+        const dateObj = new Date(task.date + 'T12:00:00');
+        meta.textContent = `📅 ${dateObj.toLocaleDateString('pt-BR')}`;
+
+        contentDiv.append(headerDiv, desc, meta);
+
+        // Ações
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'actions';
+
+        const checkBtn = document.createElement('button');
+        checkBtn.className = `icon-btn btn-complete ${task.completed ? 'active' : ''}`;
+        checkBtn.innerHTML = '✔'; // Seguro pois é estático
+        checkBtn.onclick = () => this.toggleComplete(task.id);
+
+        const editBtn = document.createElement('button');
+        editBtn.className = 'icon-btn';
+        editBtn.innerHTML = '✎';
+        editBtn.onclick = () => this.startEdit(task.id);
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'icon-btn btn-delete';
+        delBtn.innerHTML = '✕';
+        delBtn.onclick = () => this.deleteTask(task.id);
+
+        actionsDiv.append(checkBtn, editBtn, delBtn);
+
+        li.append(priorityIndicator, contentDiv, actionsDiv);
+        return li;
+    }
+
+    // --- UI HELPERS ---
+
+    updateStats() {
+        const total = this.tasks.length;
+        const completed = this.tasks.filter(t => t.completed).length;
+        const percentage = total === 0 ? 0 : (completed / total) * 100;
+        
+        this.dom.progressBar.style.width = `${percentage}%`;
+        this.dom.statsText.textContent = `${completed}/${total} Tarefas Concluídas`;
+    }
+
+    updateDateDisplay() {
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        this.dom.dateDisplay.textContent = new Date().toLocaleDateString('pt-BR', options);
+    }
+
+    showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+        
+        container.appendChild(toast);
+        
+        // Auto remove
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    setupEventListeners() {
+        this.dom.form.saveBtn.addEventListener('click', () => this.addOrUpdateTask());
+        
+        // Filtros
+        this.dom.filters.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                this.dom.filters.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                this.filter = e.target.dataset.filter;
+                this.render();
+            });
+        });
+    }
+}
+
+// Inicializar a aplicação de forma isolada
+const app = new TaskManager();
+
+</script>
+
+</body>
+</html>
