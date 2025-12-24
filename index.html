@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline';">
+    
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline';">
+    
     <title>TaskMaster Enterprise - Secure Edition</title>
     <style>
         :root {
@@ -231,7 +233,7 @@ class TaskManager {
         } else {
             // Criar Nova
             const newTask = {
-                id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(), // ID Criptograficamente forte se disponível
+                id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(),
                 title,
                 desc,
                 priority,
@@ -249,7 +251,6 @@ class TaskManager {
     }
 
     deleteTask(id) {
-        // Confirmação não intrusiva seria ideal, mas para clareza manteremos confirm()
         if (confirm('Deseja realmente excluir esta tarefa?')) {
             this.tasks = this.tasks.filter(t => t.id !== id);
             this.saveToStorage();
@@ -314,24 +315,20 @@ class TaskManager {
 
         // Ordenação
         return filtered.sort((a, b) => {
-            // Concluídas no fim
             if (a.completed !== b.completed) return a.completed ? 1 : -1;
-            // Prioridade
             const pWeight = { high: 3, medium: 2, low: 1 };
             if (pWeight[a.priority] !== pWeight[b.priority]) return pWeight[b.priority] - pWeight[a.priority];
-            // Data
             return new Date(a.date) - new Date(b.date);
         });
     }
 
     render() {
-        this.dom.list.innerHTML = ''; // Limpa a lista
+        this.dom.list.innerHTML = '';
         const tasksToRender = this.getFilteredTasks();
 
         if (tasksToRender.length === 0) {
             this.dom.list.innerHTML = `<li style="text-align:center; padding:40px; color:var(--text-sec)">Nenhuma tarefa encontrada para este filtro.</li>`;
         } else {
-            // DocumentFragment melhora performance (reflow único)
             const fragment = document.createDocumentFragment();
 
             tasksToRender.forEach(task => {
@@ -345,20 +342,13 @@ class TaskManager {
         this.updateStats();
     }
 
-    /**
-     * CRÍTICO PARA SEGURANÇA:
-     * Nunca usamos innerHTML com strings do usuário.
-     * Criamos elementos e usamos textContent.
-     */
     createTaskElement(task) {
         const li = document.createElement('li');
         li.className = `task-item ${task.completed ? 'completed' : ''}`;
         
-        // Indicador de Prioridade
         const priorityIndicator = document.createElement('div');
         priorityIndicator.className = `priority-indicator p-${task.priority}`;
         
-        // Conteúdo
         const contentDiv = document.createElement('div');
         contentDiv.className = 'task-content';
 
@@ -367,11 +357,10 @@ class TaskManager {
 
         const title = document.createElement('span');
         title.className = 'task-title';
-        title.textContent = task.title; // XSS PREVENIDO AQUI
+        title.textContent = task.title;
 
         headerDiv.appendChild(title);
 
-        // Badge de Atraso
         const today = new Date().toISOString().split('T')[0];
         if (!task.completed && task.date < today) {
             const badge = document.createElement('span');
@@ -382,24 +371,21 @@ class TaskManager {
 
         const desc = document.createElement('p');
         desc.className = 'task-desc';
-        desc.textContent = task.desc; // XSS PREVENIDO AQUI
+        desc.textContent = task.desc;
 
         const meta = document.createElement('div');
         meta.className = 'task-meta';
-        
-        // Formatar data localmente
         const dateObj = new Date(task.date + 'T12:00:00');
         meta.textContent = `📅 ${dateObj.toLocaleDateString('pt-BR')}`;
 
         contentDiv.append(headerDiv, desc, meta);
 
-        // Ações
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'actions';
 
         const checkBtn = document.createElement('button');
         checkBtn.className = `icon-btn btn-complete ${task.completed ? 'active' : ''}`;
-        checkBtn.innerHTML = '✔'; // Seguro pois é estático
+        checkBtn.innerHTML = '✔';
         checkBtn.onclick = () => this.toggleComplete(task.id);
 
         const editBtn = document.createElement('button');
@@ -417,8 +403,6 @@ class TaskManager {
         li.append(priorityIndicator, contentDiv, actionsDiv);
         return li;
     }
-
-    // --- UI HELPERS ---
 
     updateStats() {
         const total = this.tasks.length;
@@ -442,7 +426,6 @@ class TaskManager {
         
         container.appendChild(toast);
         
-        // Auto remove
         setTimeout(() => {
             toast.style.opacity = '0';
             setTimeout(() => toast.remove(), 300);
@@ -451,8 +434,6 @@ class TaskManager {
 
     setupEventListeners() {
         this.dom.form.saveBtn.addEventListener('click', () => this.addOrUpdateTask());
-        
-        // Filtros
         this.dom.filters.forEach(btn => {
             btn.addEventListener('click', (e) => {
                 this.dom.filters.forEach(b => b.classList.remove('active'));
@@ -464,9 +445,7 @@ class TaskManager {
     }
 }
 
-// Inicializar a aplicação de forma isolada
 const app = new TaskManager();
-
 </script>
 
 </body>
